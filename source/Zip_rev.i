@@ -1,0 +1,18 @@
+VERSION		EQU	1
+REVISION	EQU	1
+
+DATE	MACRO
+		dc.b '16.4.2026'
+		ENDM
+
+VERS	MACRO
+		dc.b 'Zip 1.1'
+		ENDM
+
+VSTRING	MACRO
+		dc.b 'Zip 1.1 (16.4.2026)',13,10,0
+		ENDM
+
+VERSTAG	MACRO
+		dc.b 0,'$VER: Zip 1.1 (16.4.2026)',0
+		ENDM
