@@ -149,7 +149,14 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 				fi->xfi_DataPos = i;
 				if(zip_stat_index(xadzip->zarc, i, 0, xadzip->sb) == 0) {
 
-					if (xadzip->sb->valid & ZIP_STAT_NAME) fi->xfi_FileName = xadzip->sb->name; // TODO copy this?
+					if (xadzip->sb->valid & ZIP_STAT_NAME) {
+						if(xadzip->sb->name[strlen(xadzip->sb->name)-1] == '/') {
+							/* Skip dirs */
+							xadFreeObject(fi, NULL);
+							continue;
+						}
+						fi->xfi_FileName = xadzip->sb->name; // TODO copy this?
+					}
 					if (xadzip->sb->valid & ZIP_STAT_SIZE) fi->xfi_Size = xadzip->sb->size;
 					if (xadzip->sb->valid & ZIP_STAT_COMP_SIZE) fi->xfi_CrunchSize = xadzip->sb->comp_size;
 				}
@@ -226,7 +233,8 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 	struct xadclientprivate *xadzip = ai->xai_PrivateClient;
 	if(xadzip->zarc) zip_discard(xadzip->zarc);
 	xadzip->zarc = NULL;
-	xadFreeObject(xadzip->inbuffer, NULL);
+	if(xadzip->inbuffer) xadFreeObject(xadzip->inbuffer, NULL);
+	xadzip->inbuffer = NULL;
 	xadFreeObjectA(ai->xai_PrivateClient, NULL);
 	ai->xai_PrivateClient = NULL;
 	xad_close_zip();
