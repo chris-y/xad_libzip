@@ -59,12 +59,11 @@ void xad_close_zip(void)
 	}
 
 #ifdef __amigaos4__
-/*
+
     DropInterface(INewlib);
     CloseLibrary(newlibbase);
 	INewlib = NULL;
 	newlibbase = NULL;
-*/
 #endif
 }
 
@@ -201,17 +200,19 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 	zip_file_t *zipf = zip_fopen_index(xadzip->zarc, fi->xfi_DataPos, 0);
 
 	if(zipf == NULL) {
+		zip_fclose(zipf);
 		xadFreeObjectA(outbuffer, NULL);
 		return XADERR_UNKNOWN;
 	}
 	
-	while(ret = zip_fread(zipf, outbuffer, 1024) > 0) {
+	while((ret = zip_fread(zipf, outbuffer, 1024)) > 0) {
 		err = xadHookAccess(XADAC_WRITE, ret, outbuffer, ai);
 		if(err) break;
 	};
 
 	if(ret == -1) err = XADERR_UNKNOWN;
 
+	zip_fclose(zipf);
 	xadFreeObjectA(outbuffer, NULL);
 
 	return err;
@@ -233,6 +234,8 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 	struct xadclientprivate *xadzip = ai->xai_PrivateClient;
 	if(xadzip->zarc) zip_discard(xadzip->zarc);
 	xadzip->zarc = NULL;
+	if(xadzip->zipsrc) zip_source_free(xadzip->zipsrc);
+	xadzip->zipsrc = NULL;
 	if(xadzip->inbuffer) xadFreeObject(xadzip->inbuffer, NULL);
 	xadzip->inbuffer = NULL;
 	xadFreeObjectA(ai->xai_PrivateClient, NULL);
