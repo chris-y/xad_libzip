@@ -101,7 +101,7 @@ ASM(BOOL) sz_RecogData(REG(d0, ULONG size), REG(a0, STRPTR data),
 REG(a6, struct xadMasterBase *xadMasterBase))
 #endif
 {
-  if(data[0]=='P' & data[1]=='K' & data[2]==0x03 & data[3]==0x04)
+  if(data[0]=='P' && data[1]=='K' && data[2]==0x03 && data[3]==0x04)
     return 1; /* known file */
   else
     return 0; /* unknown file */
@@ -127,19 +127,19 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 	xadzip->inbuffer = xadAllocVec(ai->xai_InSize, MEMF_CLEAR);
 	xadHookAccess(XADAC_READ, ai->xai_InSize, xadzip->inbuffer, ai);
 
-	zip_source_t *zipsrc = zip_source_buffer_create(xadzip->inbuffer, ai->xai_InSize, 0, &zerr);
+	xadzip->zipsrc = zip_source_buffer_create(xadzip->inbuffer, ai->xai_InSize, 0, &zerr);
 	
-	if(zipsrc) {
-		zip_t *zarc = zip_open_from_source(zipsrc, ZIP_RDONLY, &zerr);
+	if(xadzip->zipsrc) {
+		xadzip->zarc = zip_open_from_source(xadzip->zipsrc, ZIP_RDONLY, &zerr);
 
-		if(zarc) {
+		if(xadzip->zarc) {
 // loop
 
 			xadzip->sb = xadAllocVec(sizeof(zip_stat_t), MEMF_PRIVATE | MEMF_CLEAR);
 
 			zip_stat_init(xadzip->sb);
 
-			for( int i = 0; i < zip_get_num_entries(zarc, 0); i++) {
+			for( int i = 0; i < zip_get_num_entries(xadzip->zarc, 0); i++) {
 				zip_uint32_t clen = 0;
 				
 // on error ai->xai_Flags & XADAIF_FILECORRUPT
@@ -147,14 +147,14 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 				if (!fi) return(XADERR_NOMEMORY);
 
 				fi->xfi_DataPos = i;
-				if(zip_stat_index(zarc, i, 0, xadzip->sb) == 0) {
+				if(zip_stat_index(xadzip->zarc, i, 0, xadzip->sb) == 0) {
 
 					if (xadzip->sb->valid & ZIP_STAT_NAME) fi->xfi_FileName = xadzip->sb->name; // TODO copy this?
 					if (xadzip->sb->valid & ZIP_STAT_SIZE) fi->xfi_Size = xadzip->sb->size;
 					if (xadzip->sb->valid & ZIP_STAT_COMP_SIZE) fi->xfi_CrunchSize = xadzip->sb->comp_size;
 				}
 
-				fi->xfi_Comment = zip_file_get_comment(zarc, i, &clen, 0);
+				fi->xfi_Comment = zip_file_get_comment(xadzip->zarc, i, &clen, 0);
 				fi->xfi_Flags = XADFIF_NODATE; // date can be got from sb->mtime
 
 				if ((err = xadAddFileEntryA(fi, ai, NULL))) return(XADERR_NOMEMORY);
@@ -187,16 +187,20 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 	UBYTE *outbuffer;
 	long err=XADERR_OK, ret;
 
-	if (!xad_open_zip()) return XADERR_RESOURCE;
+	//if (!xad_open_zip()) return XADERR_RESOURCE;
 
 	outbuffer = xadAllocVec(1024, MEMF_CLEAR);
 
 	zip_file_t *zipf = zip_fopen_index(xadzip->zarc, fi->xfi_DataPos, 0);
 
-	if(zipf == NULL) return XADERR_UNKNOWN;
-
+	if(zipf == NULL) {
+		xadFreeObjectA(outbuffer, NULL);
+		return XADERR_UNKNOWN;
+	}
+	
 	while(ret = zip_fread(zipf, outbuffer, 1024) > 0) {
 		err = xadHookAccess(XADAC_WRITE, ret, outbuffer, ai);
+		if(err) break;
 	};
 
 	if(ret == -1) err = XADERR_UNKNOWN;
