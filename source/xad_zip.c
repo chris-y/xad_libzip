@@ -210,7 +210,7 @@ REG(a6, struct xadMasterBase *xadMasterBase))
 		if(err) break;
 	};
 
-	if(ret == -1) err = XADERR_UNKNOWN;
+	if((err == XADERR_OK) && (ret == -1)) err = XADERR_UNKNOWN;
 
 	zip_fclose(zipf);
 	xadFreeObjectA(outbuffer, NULL);
@@ -232,6 +232,7 @@ REG(a6, struct xadMasterBase *xadMasterBase))
   */
 
 	struct xadclientprivate *xadzip = ai->xai_PrivateClient;
+	if(xadzip == NULL) return;
 	if(xadzip->zarc) zip_discard(xadzip->zarc);
 	xadzip->zarc = NULL;
 	if(xadzip->zipsrc) zip_source_free(xadzip->zipsrc);
